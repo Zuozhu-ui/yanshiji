@@ -1,0 +1,32 @@
+# ===== 研时记 .gitignore =====
+
+# ---- Node ----
+node_modules/
+
+# ---- 前端构建产物（可再生）----
+app/dist/
+app/dist-capacitor/
+backend/public/web/
+
+# ---- Android 构建产物与本地配置 ----
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/capacitor-cordova-android-plugins/build/
+app/android/app/src/main/assets/public/
+app/android/local.properties
+
+# ---- APK 产物（通过 GitHub Releases 分发，不入库）----
+*.apk
+
+# ---- 签名密钥（绝不提交，泄露后他人可用你的身份签名安装包）----
+app/android/app/yanshiji-release.keystore
+app/android/keystore.properties
+
+# ---- IDE / 系统 ----
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
