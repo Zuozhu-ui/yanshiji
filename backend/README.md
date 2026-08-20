@@ -101,8 +101,15 @@ node publish.js ./app-release.apk --version 1.1.0 --build 3 \
 cd app
 MSYS_NO_PATHCONV=1 npx vite build --base=/ --outDir=dist-capacitor   # 打包 Web 资源
 npx cap sync android                                                  # 同步资源到原生工程
+
+# 注意：必须使用 JDK 21（@capacitor/filesystem 插件要求 Java 21 工具链）
+export JAVA_HOME="D:\\java21\\jdk-21.0.12.1+1"                       # 指向 JDK 21
+export ANDROID_HOME="C:\\Users\\Zrz\\AppData\\Local\\Android\\Sdk"
 cd android && ./gradlew assembleRelease                               # 编译签名 APK
 ```
+
+> ⚠️ 本机默认 `java` 是 JDK 23，直接构建会报 "Cannot find a Java installation ... languageVersion=21"。
+> 已安装免安装版 JDK 21 于 `D:\java21\jdk-21.0.12.1+1`（微软 OpenJDK LTS），构建前把 `JAVA_HOME` 指到它即可。
 
 ## 五、常见问题
 
