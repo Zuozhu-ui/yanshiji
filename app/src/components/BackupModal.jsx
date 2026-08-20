@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { X, Download, Upload, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { exportBackupJSON, importBackupJSON } from '../services/storage';
 
 export default function BackupModal({ onRefreshData, onClose }) {
@@ -7,16 +10,42 @@ export default function BackupModal({ onRefreshData, onClose }) {
   const [statusMsg, setStatusMsg] = useState(null);
 
   // 导出 JSON 文件
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const jsonStr = exportBackupJSON();
+      const nowStr = new Date().toISOString().slice(0, 10);
+      const fileName = `研时记_数据备份_${nowStr}.json`;
+
+      // 原生 App (Capacitor WebView)：a.download 无法触发系统下载，
+      // 改为「写入应用文档目录 + 唤起系统分享面板」，由用户选择保存位置。
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: jsonStr,
+          directory: Directory.Data,
+          encoding: Encoding.UTF8
+        });
+        try {
+          await Share.share({
+            title: '研时记数据备份',
+            text: '研时记学习数据备份，请选择「保存到文件」或发送到微信/网盘。',
+            files: [result.uri],
+            dialogTitle: '保存或发送备份文件'
+          });
+          setStatusMsg({ type: 'success', text: `备份已生成：${fileName}。请在面板中选择「保存到文件」存放，或发送给微信/网盘。` });
+        } catch (shareErr) {
+          // 用户取消了分享面板，文件仍已写入应用文档目录
+          setStatusMsg({ type: 'success', text: `备份文件已生成：${fileName}（未弹出分享面板，文件已保存在应用文档目录）。` });
+        }
+        return;
+      }
+
+      // Web 浏览器：保留原有下载逻辑
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-
-      const nowStr = new Date().toISOString().slice(0, 10);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `研时记_数据备份_${nowStr}.json`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

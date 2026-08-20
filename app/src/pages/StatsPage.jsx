@@ -5,8 +5,9 @@ import CalendarHeatmap from '../components/CalendarHeatmap';
 import { formatDate } from '../services/storage';
 
 export default function StatsPage({ config, records }) {
-  const [rangeType, setRangeType] = useState('week'); // 'day' | 'week' | 'month'
+  const [rangeType, setRangeType] = useState('week'); // 'day' | 'week' | 'month' | 'all'
   const [selectedDayStr, setSelectedDayStr] = useState(formatDate(new Date()));
+  const [selectedMonthStr, setSelectedMonthStr] = useState(() => formatDate(new Date()).slice(0, 7)); // 'YYYY-MM'
 
   // 1. 全量指标 (不受时间筛选影响)
   const totalCount = records.length;
@@ -41,18 +42,25 @@ export default function StatsPage({ config, records }) {
     }
 
     if (rangeType === 'month') {
-      // 自然月 (本月1日 ~ 本月最后一日)
-      const y = today.getFullYear();
-      const m = today.getMonth();
-
-      const firstDay = new Date(y, m, 1);
-      const lastDay = new Date(y, m + 1, 0);
+      // 自然月 (所选月份 1 日 ~ 月末)，支持选择具体某年某月
+      const [y, m] = selectedMonthStr.split('-').map(Number); // m: 1-12
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay = new Date(y, m, 0); // 当月最后一天
 
       const startStr = formatDate(firstDay);
       const endStr = formatDate(lastDay);
 
-      const elapsedDays = today.getDate(); // 1日至今的天数
+      const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m - 1;
+      const elapsedDays = isCurrentMonth ? today.getDate() : lastDay.getDate();
       return { startStr, endStr, elapsedDays };
+    }
+
+    if (rangeType === 'all') {
+      // 全部历史：起止 = 最早记录日 ~ 今天；日均按「有记录的天数」计算
+      const dates = records.map(r => r.record_date).filter(Boolean);
+      const distinctDays = new Set(dates).size;
+      const startStr = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : formatDate(today);
+      return { startStr, endStr: formatDate(today), elapsedDays: Math.max(1, distinctDays) };
     }
 
     return { startStr: formatDate(today), endStr: formatDate(today), elapsedDays: 1 };
@@ -114,7 +122,7 @@ export default function StatsPage({ config, records }) {
   return (
     <div className="animate-fade-in" style={{ padding: '16px', paddingBottom: '32px' }}>
       
-      {/* 时间筛选器 (日 / 周 / 月) */}
+      {/* 时间筛选器 (日 / 周 / 月 / 全部) */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button
           onClick={() => setRangeType('day')}
@@ -128,14 +136,21 @@ export default function StatsPage({ config, records }) {
           className={rangeType === 'week' ? 'btn-primary' : 'btn-outline'}
           style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}
         >
-          本周 (自然周)
+          周
         </button>
         <button
           onClick={() => setRangeType('month')}
           className={rangeType === 'month' ? 'btn-primary' : 'btn-outline'}
           style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}
         >
-          本月 (自然月)
+          月
+        </button>
+        <button
+          onClick={() => setRangeType('all')}
+          className={rangeType === 'all' ? 'btn-primary' : 'btn-outline'}
+          style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }}
+        >
+          全部
         </button>
       </div>
 
@@ -147,6 +162,19 @@ export default function StatsPage({ config, records }) {
             type="date"
             value={selectedDayStr}
             onChange={(e) => setSelectedDayStr(e.target.value)}
+            style={{ fontSize: '0.9rem', padding: '6px 12px' }}
+          />
+        </div>
+      )}
+
+      {/* 月份选择器 */}
+      {rangeType === 'month' && (
+        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-sub)' }}>查看月份：</span>
+          <input
+            type="month"
+            value={selectedMonthStr}
+            onChange={(e) => setSelectedMonthStr(e.target.value || formatDate(new Date()).slice(0, 7))}
             style={{ fontSize: '0.9rem', padding: '6px 12px' }}
           />
         </div>
