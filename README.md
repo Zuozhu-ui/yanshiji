@@ -85,7 +85,7 @@ npm run lint         # oxlint
 
 ```bash
 cd app
-npm run build -- --base=/ --outDir=dist-capacitor   # 原生用的 Web 资源
+npm run build:capacitor   # 原生用的 Web 资源（base=/）
 npx cap sync android
 cd android && ./gradlew assembleRelease
 # 产物：app/android/app/build/outputs/apk/release/app-release.apk
