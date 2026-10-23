@@ -1,81 +1,116 @@
-# 研时记
+# 学时记（工作名）
 
-> **免费**的考研学习计时统计 App · 纯本地单机 · 无需联网 · 无账号 · 无广告
+> 安静的学习记录工具 · 纯本地 · 不联网 · 无账号 · 无广告
 
-面向考研备考人群的单机学习计时统计软件：自定义目标考试日期倒计时、学习计时打卡、各学科时间占比统计、历史日志管理。**全部数据存在设备本地**，离线可用，卸载即失、可随时备份导出。
+从「考研倒计时」升级为**通用学习记录**：目标日、专注计时、科目统计、学习日志与复盘，数据全部留在你自己的手机上。
 
-## 功能特性
-
-- 🗓️ 自定义目标考试日期倒计时（到期自动切换"已考完"）
-- ⏱️ 学习计时：科目选择、开始 / 暂停 / 结束、本次学习内容记录
-- 📊 统计图表：日 / 周 / 月维度、学科时长饼图占比、累计 / 日均时长
-- 📜 历史日志：按日期倒序、编辑 / 删除、指定日期筛选
-- 📝 手动补录（忘记计时也能补记）
-- 💾 JSON 备份导出 / 导入
-- 🔒 纯本地存储：无联网、无账号、无广告、无任何隐私收集
+> 名称目前是工作名，最终名称待定。改名只需修改 `app/src/brand.js` 一处。
 
 ## 截图
 
-| | | |
-|---|---|---|
-| ![首页](screenshots/01_homepage.png) | ![手动补录](screenshots/02_filling_manual_log.png) | ![统计饼图](screenshots/03_donut_ring_chart.png) |
-| ![历史日志](screenshots/04_history_logs.png) | ![深色模式](screenshots/05_dark_mode.png) | |
+| 首页 | 计时 |
+|---|---|
+| ![首页](screenshots/01_home.png) | ![计时](screenshots/02_timer.png) |
+
+| 统计 | 日志 |
+|---|---|
+| ![统计](screenshots/03_stats.png) | ![日志](screenshots/04_log.png) |
+
+| 备份与恢复 |
+|---|
+| ![备份](screenshots/05_backup.png) |
+
+## 功能
+
+- **目标日**：可选倒计时，支持设定 / 修改 / 清除，不再绑定考试
+- **专注计时**：秒表与番茄钟（25/50），科目切换、暂停/继续、结束保存
+- **直接录入**：忘记计时也能按日期 + 时长补记
+- **今日概览**：当天总时长、目标进度、各科目占比、最近记录
+- **统计**：日 / 周 / 月 / 全部，累计次数与时长、日均、科目分布、近 7 天趋势、打卡热历
+- **日志**：按日期倒序、科目标签、行内编辑/删除、按日期筛选、每日复盘
+- **备份**：系统「保存到文件」导出真文件、文件导入（合并/覆盖）、自动备份 5 份 + 一键恢复
+- **纯本地**：无联网请求，无账号，卸载即清空（请定期导出备份）
 
 ## 下载安装
 
-- **APK 安装包**：见页面右侧 **Release 发行版**（Android，装好后完全独立运行，无需电脑/网络）
-- Android 首次安装需开启「允许未知来源应用」，详见各品牌设置
-- 也支持直接以 **Web 在线版** 使用（见 backend 分发服务）
+- **Gitee Releases**：<https://gitee.com/zhang-rui_zhe/yanshiji/releases>
+- **GitHub Releases**：<https://github.com/Zuozhu-ui/yanshiji/releases>
+
+首次安装需允许「安装未知来源应用」。**升级时请直接覆盖安装，不要先卸载**，否则本地数据会一起删除。
 
 ## 技术栈
 
-- 前端：React (Vite) + Capacitor，数据存浏览器 localStorage
-- 打包：Android release APK，正式签名（密钥不入库）
-- 分发：`backend/` 零依赖 Node 服务（APK 下载 + Web 托管）
+| 层 | 选型 |
+|---|---|
+| 前端 | React 19 + Vite 8（无路由库、无状态库，服务层单例 + props） |
+| 原生壳 | Capacitor 8（Android） |
+| 存储 | 浏览器 localStorage（字段与 key 兼容旧版本） |
+| 原生插件 | `BackupFilePlugin`（SAF 文件保存/选择） |
+| 打包 | Android release APK，正式签名（密钥不入库） |
+| 分发 | Gitee / GitHub Releases，`backend/` 提供可选的零依赖分发服务 |
 
-## 仓库结构
-
-```
-研时记/
-├── 研时记-开发文档-完善版.md   # 开发依据文档（含技术选型/统计口径/边界用例）
-├── app/                        # 前端源码（React + Vite + Capacitor）
-│   ├── src/                    #   React 源码
-│   ├── dist/                   #   Web 在线版构建（base=/public/web/，供 backend 分发）
-│   ├── dist-capacitor/         #   原生 App 用的 Web 资源（base=/）
-│   ├── android/                #   Capacitor 生成的 Android 原生工程
-│   └── capacitor.config.json   #   Capacitor 配置
-└── backend/                    # 安装包分发服务（Node，零依赖）
-    ├── server.js               # 分发服务入口（下载页 + Web 在线版 + APK）
-    ├── publish.js              # 发布脚本（登记新版本 APK）
-    ├── public/index.html       # 移动端下载页
-    └── data/                   # versions.json + APK 存放目录
-```
-
-## 分工约定
-
-| 模块 | 负责方 | 说明 |
-|---|---|---|
-| 移动端 App（React + Capacitor） | 前端团队 | 界面 + 业务逻辑，纯本地存储（浏览器 localStorage），**不调用后端接口** |
-| 安装包分发服务（后端） | 本仓库 `backend/` | 负责 APK 下载分发 + Web 在线版托管 |
-
-前端与后端的唯一交集：前端构建出的 **APK** → `node backend/publish.js` 登记 → 用户下载页即可见（无需重启服务）。详见 [backend/README.md](backend/README.md) 的「前端打包契约」。
-
-## 手机安装路径（当前方案：真 APK）
+## 目录结构
 
 ```
-app/ (React 源码) ──vite build──▶ dist-capacitor ──npx cap sync android──▶ android/ ──gradlew assembleRelease──▶ app-release.apk
-                                                                                                            │
-                            user 手机 ◀──下载安装── backend/data/apk ◀──node publish.js──┘
+.
+├── app/                      # React + Capacitor 前端
+│   ├── src/
+│   │   ├── brand.js          # 品牌名 / 备份标识（改名只改这里）
+│   │   ├── pages/            # 首页、计时、统计、日志
+│   │   ├── components/       # 卡片、图表、弹窗
+│   │   ├── services/         # 存储、计时状态机、自动备份、SAF 封装
+│   │   └── styles/tokens.css # 设计令牌
+│   ├── android/              # Capacitor 原生工程（含自定义插件）
+│   ├── test_suite.mjs        # 纯函数单元测试（13 项）
+│   └── dist-capacitor/       # 构建产物（不入库）
+├── backend/                  # 可选：APK 分发服务（Node，零依赖）
+├── docs/                     # 开发文档与路线图
+├── screenshots/              # 界面截图
+└── 研时记-开发文档-完善版.md  # v1.1 旧方案（Flutter），仅作历史参考
 ```
 
-APK 重新构建流程：见 [backend/README.md](backend/README.md) 第四节。
-
-## 快速上手
+## 本地开发
 
 ```bash
-# 分发服务（本地/局域网测试）
-cd backend
-node server.js
+cd app
+npm install
+npm run dev          # http://localhost:5173
+npm test             # 纯函数测试（node test_suite.mjs）
+npm run lint         # oxlint
 ```
 
-正式分发需 HTTPS 域名，部署说明见 [backend/README.md](backend/README.md)。
+### 打包 APK
+
+> 必须使用 **JDK 21**（Capacitor 8 插件要求），Android SDK 36。
+
+```bash
+cd app
+npm run build -- --base=/ --outDir=dist-capacitor   # 原生用的 Web 资源
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# 产物：app/android/app/build/outputs/apk/release/app-release.apk
+```
+
+签名配置在 `app/android/keystore.properties`（本地文件，已 gitignore）。`versionCode` 每次发版必须递增。
+
+## 数据与兼容
+
+升级不丢数据的前提（已固定，**不要改**）：
+
+1. `applicationId` = `com.yanshiji.app`
+2. 同一签名密钥
+3. `versionCode` 递增
+4. `androidScheme` 保持 `https`（WebView 存储按 origin 隔离）
+
+内部存储 key（`yanshiji_*`）与字段名保持不变；备份文件的应用标识已改为新名字，但导入同时接受旧版「研时记」的备份。
+
+## 文档
+
+- [开发文档](docs/开发文档.md)：架构、数据模型、业务规则、原生插件、构建发布
+- [路线图](docs/ROADMAP.md)：v1.3 / v1.4 规划与验收标准
+- [更新日志](CHANGELOG.md)
+- [后端分发服务](backend/README.md)
+
+## 许可
+
+见 [LICENSE](LICENSE)。

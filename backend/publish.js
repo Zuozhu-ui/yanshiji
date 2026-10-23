@@ -1,5 +1,5 @@
 /**
- * 研时记 · 发布脚本
+ * 学时记 · 发布脚本
  *
  * 前端团队构建出 APK 后，运行本脚本即可发布为「最新版」并生成版本清单。
  *
@@ -66,7 +66,7 @@ let manifest;
 try {
   manifest = JSON.parse(fs.readFileSync(VERSIONS_FILE, 'utf8'));
 } catch {
-  manifest = { app: { name: '研时记', packageName: 'com.yanshiji.app' }, versions: [] };
+  manifest = { app: { name: '学时记', packageName: 'com.yanshiji.app' }, versions: [] };
 }
 if (!Array.isArray(manifest.versions)) manifest.versions = [];
 
