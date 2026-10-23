@@ -1,16 +1,25 @@
-/* 研时记 · 考研励志与备考金句 (Motivational Quotes) */
+/* 学时记 · 学习金句（通用学习场景，不再限定考研） */
 
-export const KAOYAN_QUOTES = [
-  { text: "长路漫漫，终有归途。日复一日的坚持，终将汇聚成耀眼的光芒。", author: "研时记" },
-  { text: "考研不是为了超越别人，而是为了成为那个你一直向往的自己。", author: "研时记" },
-  { text: "高数多做一道题，考场多拿两分；英文多记一个词，复试多一分胜算。", author: "备考箴言" },
-  { text: "你所熬过的每一个夜晚，都在悄悄为你搭起通往一等奖学金与心仪院校的阶梯。", author: "研时记" },
-  { text: "星光不问赶路人，时光不负考研人。合上笔盖的那一刻，一定会有拔剑出鞘的骄傲！", author: "研时记" },
-  { text: "沉心静气，按部就班。不要焦虑未知的答案，脚下的每一步都算数。", author: "研时记" },
-  { text: "种一棵树最好的时间是十年前，其次就是现在。专注当下这一刻！", author: "研时记" }
+export const STUDY_QUOTES = [
+  { text: '把时间花在哪里，人生的花就开在哪里。', author: '学习手记' },
+  { text: '慢慢来，比较快。', author: '学习手记' },
+  { text: '今天的专注，是明天的底气。', author: '学习手记' },
+  { text: '不积跬步，无以至千里；不积小流，无以成江海。', author: '荀子' },
+  { text: '你只需要比昨天的自己，好一点点。', author: '学习手记' },
+  { text: '学如逆水行舟，不进则退。', author: '古语' },
+  { text: '把大目标，拆成今天的一小时。', author: '学习手记' },
+  { text: '所有看似毫不费力的成绩，都来自日复一日的用力。', author: '学习手记' },
+  { text: '种一棵树最好的时间是十年前，其次就是现在。', author: '谚语' },
+  { text: '专注的每一分钟，都算数。', author: '学习手记' },
 ];
 
+/** 每天固定一句：同一天多次渲染不会跳变 */
+export function getDailyQuote(date = new Date()) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date - start) / 86400000);
+  return STUDY_QUOTES[dayOfYear % STUDY_QUOTES.length];
+}
+
 export function getRandomQuote() {
-  const index = Math.floor(Math.random() * KAOYAN_QUOTES.length);
-  return KAOYAN_QUOTES[index];
+  return STUDY_QUOTES[Math.floor(Math.random() * STUDY_QUOTES.length)];
 }

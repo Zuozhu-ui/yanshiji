@@ -6,6 +6,7 @@ import {
   exportBackupJSON, 
   importBackupJSON 
 } from './src/services/storage.js';
+import { BRAND } from './src/brand.js';
 
 // 简单内存 Storage 模拟，便于 Node 环境脱离浏览器测试
 class MockLocalStorage {
@@ -82,8 +83,8 @@ console.log('\n▶ 4. 数据备份与恢复 (JSON Schema) 测试:');
 // 设置初始数据
 localStorage.setItem('yanshiji_app_config_v1', JSON.stringify(getDefaultConfig()));
 localStorage.setItem('yanshiji_study_records_v1', JSON.stringify([
-  { record_id: 1, subject_name: '数学', duration_min: 60, record_date: '2026-08-07' },
-  { record_id: 2, subject_name: '英语', duration_min: 45, record_date: '2026-08-07' }
+  { record_id: 1, start_timestamp: 1754550000000, end_timestamp: 1754553600000, subject_name: '数学', duration_min: 60, study_content: '高数第六章', record_date: '2026-08-07' },
+  { record_id: 2, start_timestamp: 1754557200000, end_timestamp: 1754559900000, subject_name: '英语', duration_min: 45, study_content: '外刊精读', record_date: '2026-08-07' }
 ]));
 
 const exportedJsonStr = exportBackupJSON();
@@ -92,15 +93,24 @@ try {
   exportedData = JSON.parse(exportedJsonStr);
 } catch (e) {}
 
-assert(exportedData && exportedData.app === '研时记' && exportedData.records.length === 2, '导出 JSON 符合“研时记”规范且记录条数一致');
+assert(exportedData && exportedData.app === BRAND.backupId && exportedData.records.length === 2, '导出 JSON 使用新的应用标识且记录条数一致');
 
 // 校验无效 JSON 拦截
 const invalidRes = importBackupJSON('{"app":"未知软件"}', 'merge');
-assert(!invalidRes.success, '导入非“研时记”格式 JSON 时，安全拦截并抛出错误提示');
+assert(!invalidRes.success, '导入非本软件格式 JSON 时，安全拦截并抛出错误提示');
+
+// 旧版「研时记」备份仍可导入
+const legacyJson = JSON.stringify({
+  app: '研时记',
+  formatVersion: 1,
+  records: [{ recordId: 99, subjectName: '数学', durationMin: 30, recordDate: '2026-08-01' }],
+});
+const legacyRes = importBackupJSON(legacyJson, 'merge');
+assert(legacyRes.success && legacyRes.count === 1, '旧版「研时记」备份可以正常导入');
 
 // 测试合并模式去重
 const mergeRes = importBackupJSON(exportedJsonStr, 'merge');
-assert(mergeRes.success && mergeRes.count === 0, '合并模式导入已有相同 recordId 记录时，正确跳过重复条目 (0条新增)');
+assert(mergeRes.success && mergeRes.count === 0, '合并模式重复导入同一份备份时，按内容指纹跳过 (0条新增)');
 
 // 测试覆盖模式
 const overwriteRes = importBackupJSON(exportedJsonStr, 'overwrite');

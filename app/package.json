@@ -1,12 +1,14 @@
 {
   "name": "app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node test_suite.mjs",
+    "build:capacitor": "vite build --base=/ --outDir=dist-capacitor",
     "preview": "vite preview"
   },
   "dependencies": {

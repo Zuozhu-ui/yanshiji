@@ -66,7 +66,7 @@ export default function SettingsModal({ config, onUpdateConfig, onOpenBackup, on
     onRefreshData();
     setShowWipeConfirm(false);
     setWipeInputText('');
-    alert('全量学习日志数据已清空（考试日期与系统设置已保留）。');
+    alert('学习记录已清空（目标日与设置保留）。');
     onClose();
   };
 
@@ -74,7 +74,7 @@ export default function SettingsModal({ config, onUpdateConfig, onOpenBackup, on
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>应用设置与数据管理</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>设置</h3>
           <button onClick={onClose} style={{ background: 'transparent', padding: '4px' }}>
             <X size={20} />
           </button>
@@ -193,9 +193,9 @@ export default function SettingsModal({ config, onUpdateConfig, onOpenBackup, on
         <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--text-sub)', fontSize: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
             <ShieldCheck size={14} color="#10B981" />
-            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>研时记 v1.1（完善版）</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>学时记 v1.2</span>
           </div>
-          <p>单机纯本地存储 · 零广告 · 不联网申请</p>
+          <p>纯本地存储 · 无账号 · 无广告</p>
         </div>
 
         <button onClick={onClose} className="btn-outline" style={{ width: '100%', padding: '10px' }}>
@@ -210,7 +210,7 @@ export default function SettingsModal({ config, onUpdateConfig, onOpenBackup, on
                 ⚠️ 高危操作：清空全量学习记录
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '14px' }}>
-                此操作将永久删除你所有的历史学习打卡日志与备考复盘数据。为了防止误触，请输入“<strong style={{ color: 'var(--text-main)' }}>清空</strong>”以确认操作：
+                此操作会永久删除全部学习记录与复盘。为了防止误触，请输入“<strong style={{ color: 'var(--text-main)' }}>清空</strong>”以确认操作：
               </p>
 
               {wipeError && (

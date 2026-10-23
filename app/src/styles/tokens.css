@@ -1,0 +1,111 @@
+/* ============================================================
+   学时记 · 设计令牌（Design Tokens）
+   日间：纸感手账；夜间/专注：墨绿暗色
+   ============================================================ */
+
+:root {
+  /* —— 纸张 —— */
+  --paper-0: #F7F1E6;
+  --paper-1: #FFFCF5;
+  --paper-2: #F1E7D6;
+  --paper-3: #E8DCC7;
+
+  /* —— 墨色 —— */
+  --ink-1: #1F2C34;
+  --ink-2: #5A6761;
+  --ink-3: #8C948A;
+  --ink-4: #B3B7AA;
+
+  /* —— 线条 —— */
+  --line: #E6D9C3;
+  --line-strong: #D8C6A9;
+  --line-soft: rgba(31, 44, 52, 0.06);
+
+  /* —— 强调色 —— */
+  --accent: #B4663A;
+  --accent-deep: #97502A;
+  --accent-soft: #F6E6D6;
+  --accent-line: #E3C7AA;
+  --seal: #B44A3C;
+  --teal: #2F6F63;
+  --ok: #4C8C6F;
+  --danger: #C2543F;
+
+  /* —— 圆角 —— */
+  --radius-xl: 28px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --radius-xs: 9px;
+  --radius-full: 999px;
+
+  /* —— 阴影 —— */
+  --shadow-1: 0 2px 10px rgba(92, 70, 40, 0.05);
+  --shadow-2: 0 14px 34px rgba(92, 70, 40, 0.09);
+  --shadow-3: 0 28px 70px rgba(50, 38, 20, 0.18);
+
+  /* —— 字体 —— */
+  --font-sans: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei",
+    system-ui, -apple-system, sans-serif;
+  --font-serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC",
+    "SimSun", serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Roboto Mono", monospace;
+
+  --nav-h: 72px;
+
+  /* ============================================================
+     兼容层：旧页面仍在使用的变量名，统一映射到新令牌
+     ============================================================ */
+  --bg-main: var(--paper-0);
+  --bg-card: var(--paper-1);
+  --bg-wood: var(--paper-2);
+  --primary-blue: #3E6E8E;
+  --primary-blue-hover: #335C77;
+  --primary-blue-light: #E7EFF2;
+  --accent-gold: var(--accent);
+  --accent-gold-light: var(--accent-soft);
+  --text-main: var(--ink-1);
+  --text-sub: var(--ink-2);
+  --text-muted: var(--ink-3);
+  --text-on-primary: #FFF8EE;
+  --border-color: var(--line);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
+  --radius-lg-old: var(--radius-lg);
+}
+
+/* —— 深色（设置里的护眼模式 / 夜间） —— */
+[data-theme='dark'] {
+  --paper-0: #0C1512;
+  --paper-1: #121C18;
+  --paper-2: #18231E;
+  --paper-3: #1F2C25;
+
+  --ink-1: #E9F0EB;
+  --ink-2: #A9BDB2;
+  --ink-3: #7E958A;
+  --ink-4: #5E7468;
+
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --line-soft: rgba(255, 255, 255, 0.05);
+
+  --accent: #E3A06A;
+  --accent-deep: #C98A4B;
+  --accent-soft: rgba(227, 160, 106, 0.14);
+  --accent-line: rgba(227, 160, 106, 0.3);
+  --seal: #C4604F;
+  --teal: #7FC3B0;
+  --ok: #7FBFA0;
+  --danger: #E0705A;
+
+  --shadow-1: 0 2px 10px rgba(0, 0, 0, 0.28);
+  --shadow-2: 0 14px 34px rgba(0, 0, 0, 0.38);
+  --shadow-3: 0 28px 70px rgba(0, 0, 0, 0.5);
+
+  --primary-blue: #7FA9C2;
+  --primary-blue-hover: #9CBBCE;
+  --primary-blue-light: rgba(127, 169, 194, 0.14);
+  --text-on-primary: #0C1512;
+}

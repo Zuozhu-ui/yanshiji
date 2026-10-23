@@ -1,165 +1,166 @@
 import React from 'react';
-import { Play, Sparkles, BookOpen, Clock, Target, ChevronRight } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import CountdownCard from '../components/CountdownCard';
 import TimerWidget from '../components/TimerWidget';
-import { getRandomQuote } from '../services/quotes';
+import Ring from '../components/Ring';
+import { getDailyQuote } from '../services/quotes';
 import { formatDate } from '../services/storage';
+import { BRAND } from '../brand';
 
-export default function HomePage({ 
-  config, 
-  records, 
-  timerState, 
-  onStartTimer, 
-  onJumpToTimer, 
-  onOpenEditDate 
+const WEEK_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
+
+function greetingOf(hour) {
+  if (hour < 5) return '夜深了';
+  if (hour < 9) return '早上好';
+  if (hour < 12) return '上午好';
+  if (hour < 14) return '中午好';
+  if (hour < 18) return '下午好';
+  return '晚上好';
+}
+
+function humanMinutes(min) {
+  if (!min) return '0 分钟';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h} 小时${m ? ` ${m} 分` : ''}` : `${m} 分钟`;
+}
+
+export default function HomePage({
+  config,
+  records,
+  timerState,
+  onJumpToTimer,
+  onOpenEditDate,
+  onOpenSettings,
 }) {
-  const quote = getRandomQuote();
-  const todayStr = formatDate(new Date());
+  const now = new Date();
+  const todayStr = formatDate(now);
+  const quote = getDailyQuote(now);
 
-  // 过滤今日记录
-  const todayRecords = records.filter(r => r.record_date === todayStr);
-  const todayTotalMin = todayRecords.reduce((sum, r) => sum + (r.duration_min || 0), 0);
+  const todayRecords = records.filter((r) => r.record_date === todayStr);
+  const totalMin = todayRecords.reduce((sum, r) => sum + (r.duration_min || 0), 0);
+  const targetMin = config.daily_target_min || 0;
+  const percent = targetMin > 0 ? Math.min(1, totalMin / targetMin) : 0;
 
-  // 今日按科目统计
-  const todaySubjectMap = {};
-  todayRecords.forEach(r => {
-    todaySubjectMap[r.subject_name] = (todaySubjectMap[r.subject_name] || 0) + r.duration_min;
+  const subjectMap = {};
+  todayRecords.forEach((r) => {
+    subjectMap[r.subject_name] = (subjectMap[r.subject_name] || 0) + (r.duration_min || 0);
   });
+  const topSubjects = Object.entries(subjectMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const maxMin = topSubjects.length ? topSubjects[0][1] : 1;
 
-  const dailyTargetMin = config.daily_target_min || 300;
-  const targetPercent = Math.min(100, Math.round((todayTotalMin / dailyTargetMin) * 100));
+  const colorOf = (name) => {
+    const found = (config.subjects || []).find((s) => s.name === name);
+    return found ? found.color : '#9AA5B1';
+  };
 
-  // 科目颜色映射
-  const subjectColorMap = {};
-  (config.subjects || []).forEach(s => {
-    subjectColorMap[s.name] = s.color;
-  });
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+
+  const recent = [...records]
+    .sort(
+      (a, b) =>
+        (b.record_date || '').localeCompare(a.record_date || '') ||
+        (b.start_timestamp || 0) - (a.start_timestamp || 0)
+    )
+    .slice(0, 3);
 
   return (
-    <div className="animate-fade-in" style={{ padding: '16px', paddingBottom: '32px' }}>
-      {/* 迷你悬浮常驻计时条 */}
+    <div className="page home">
+      <div className="home-top">
+        <div className="home-date">
+          {now.getMonth() + 1} 月 {now.getDate()} 日 · 周{WEEK_SHORT[now.getDay()]}
+        </div>
+        <button className="avatar" onClick={onOpenSettings} aria-label="设置">
+          <Settings size={17} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <h1 className="home-greet">
+        {greetingOf(now.getHours())}
+        <em>今天也为自己积累一点</em>
+      </h1>
+
       <TimerWidget timerState={timerState} onClick={onJumpToTimer} />
 
-      {/* 考研目标倒计时卡片 */}
-      <CountdownCard 
-        examTargetDate={config.exam_target_date} 
-        onOpenEditDate={onOpenEditDate} 
-      />
+      <CountdownCard examTargetDate={config.exam_target_date} onOpenEditDate={onOpenEditDate} />
 
-      {/* 快捷按钮：开始计时 */}
-      <button 
-        onClick={onStartTimer}
-        className="btn-primary"
-        style={{
-          width: '100%',
-          padding: '16px',
-          fontSize: '1.1rem',
-          borderRadius: 'var(--radius-lg)',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px'
-        }}
-      >
-        <Play size={22} fill="white" />
-        <span>开始学习计时</span>
-      </button>
-
-      {/* 今日学习汇总卡片 */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={18} color="var(--primary-blue)" />
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>今日学习汇总</h3>
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-sub)' }}>{todayStr}</span>
+      <section className="card" style={{ marginTop: 26 }}>
+        <div className="card-head">
+          <h3>今日专注</h3>
+          <span>{todayStr}</span>
         </div>
 
-        {/* 今日专注总时长 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: '6px',
-          marginBottom: '14px'
-        }}>
-          <span style={{ fontSize: '2.4rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--primary-blue)' }}>
-            {Math.floor(todayTotalMin / 60)}
-          </span>
-          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-sub)' }}>小时</span>
-          <span style={{ fontSize: '2.4rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--primary-blue)' }}>
-            {todayTotalMin % 60}
-          </span>
-          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-sub)' }}>分钟</span>
-        </div>
+        <div className="today-main">
+          <Ring size={88} stroke={7} value={percent} color="var(--accent)">
+            <b>{Math.round(percent * 100)}%</b>
+            <span>目标</span>
+          </Ring>
 
-        {/* 每日目标进度条 */}
-        {dailyTargetMin > 0 && (
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-sub)', marginBottom: '4px' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Target size={14} /> 每日目标 ({Math.floor(dailyTargetMin / 60)}h)
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{targetPercent}%</span>
-            </div>
-            <div style={{ height: '8px', width: '100%', backgroundColor: 'var(--bg-main)', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${targetPercent}%`,
-                background: 'linear-gradient(90deg, var(--primary-blue), var(--accent-gold))',
-                borderRadius: '4px',
-                transition: 'width 0.4s ease'
-              }} />
-            </div>
-          </div>
-        )}
-
-        {/* 科目明细分布 */}
-        {Object.keys(todaySubjectMap).length > 0 ? (
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-sub)', marginBottom: '8px', fontWeight: 600 }}>
-              今日各科投入：
+            <div className="today-num">
+              {h}
+              <small>h</small> {m}
+              <small>m</small>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {Object.entries(todaySubjectMap).map(([sub, mins]) => {
-                const subColor = subjectColorMap[sub] || '#9AA5B1';
-                const subPercent = Math.round((mins / todayTotalMin) * 100);
-                return (
-                  <div key={sub} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: subColor }} />
-                      <span style={{ fontWeight: 500 }}>{sub}</span>
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-sub)' }}>
-                      {Math.floor(mins / 60) > 0 ? `${Math.floor(mins / 60)}h ` : ''}{mins % 60}m ({subPercent}%)
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="today-sub">
+              {targetMin > 0
+                ? percent >= 1
+                  ? '今日目标已达成，很稳'
+                  : `还差 ${humanMinutes(targetMin - totalMin)} 达到今日目标`
+                : '还没有设置每日目标'}
             </div>
+          </div>
+        </div>
+
+        {topSubjects.length > 0 ? (
+          <div style={{ marginTop: 6 }}>
+            {topSubjects.map(([name, mins]) => (
+              <div className="subj" key={name}>
+                <span className="dot" style={{ background: colorOf(name) }} />
+                <span className="name">{name}</span>
+                <span className="track">
+                  <span
+                    className="fill"
+                    style={{ width: `${Math.round((mins / maxMin) * 100)}%`, background: colorOf(name) }}
+                  />
+                </span>
+                <span className="time">{mins} 分</span>
+              </div>
+            ))}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            今日尚未开始计时，去专注一下吧！
+          <div className="empty-hint">
+            今天还没有记录
+            <br />
+            点下方中间的按钮，开始第一段专注
           </div>
         )}
+      </section>
+
+      <div className="quote">
+        <p>“{quote.text}”</p>
+        <div className="from">—— {quote.author}</div>
       </div>
 
-      {/* 研语切切 · 备考励志金句卡片 */}
-      <div className="card card-wood">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-          <Sparkles size={16} color="var(--accent-gold)" />
-          <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--accent-gold)' }}>
-            研语切切 · 每日灵感
-          </span>
-        </div>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6, fontStyle: 'italic', marginBottom: '6px' }}>
-          “{quote.text}”
-        </p>
-        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-sub)', fontWeight: 600 }}>
-          —— {quote.author}
-        </div>
-      </div>
+      {recent.length > 0 && (
+        <section className="recent">
+          <div className="recent-head">
+            <h3>最近记录</h3>
+            <span>共 {records.length} 条</span>
+          </div>
+          {recent.map((r) => (
+            <div className="recent-item" key={r.record_id}>
+              <span className="recent-dot" style={{ background: colorOf(r.subject_name) }} />
+              <span className="recent-subject">{r.subject_name}</span>
+              <span className="recent-content">{r.study_content || '没有填写内容'}</span>
+              <span className="recent-min">{r.duration_min}m</span>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

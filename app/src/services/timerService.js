@@ -19,7 +19,7 @@ class TimerService {
     this.startTimestamp = null;
     this.pausedMs = 0;
     this.lastPauseTime = null;
-    this.subjectName = '数学';
+    this.subjectName = '其他';
     this.targetMinutes = 25; // 番茄钟目标分钟数
     
     this.listeners = new Set();
@@ -81,7 +81,7 @@ class TimerService {
   }
 
   // 开始计时
-  start(subjectName = '数学') {
+  start(subjectName = '其他') {
     if (this.status === TIMER_STATUS.RUNNING) return;
 
     if (this.status === TIMER_STATUS.IDLE) {
@@ -198,7 +198,7 @@ class TimerService {
     this.startTimestamp = hb.startTimestamp;
     this.pausedMs = hb.pausedMs || 0;
     this.lastPauseTime = hb.lastPauseTime || null;
-    this.subjectName = hb.subjectName || '数学';
+    this.subjectName = hb.subjectName || '其他';
     this.mode = hb.mode || TIMER_MODE.COUNT_UP;
     this.targetMinutes = hb.targetMinutes || 25;
 

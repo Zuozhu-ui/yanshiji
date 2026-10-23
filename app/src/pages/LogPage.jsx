@@ -1,109 +1,115 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Calendar, FileText, Filter, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Filter, FileText, Save } from 'lucide-react';
 import EditLogModal from '../components/EditLogModal';
-import ManualLogModal from '../components/ManualLogModal';
 import { getReflections, saveReflection } from '../services/storage';
+import { COPY } from '../brand';
 
-export default function LogPage({ 
-  config, 
-  records, 
-  onUpdateRecord, 
-  onDeleteRecord, 
-  onAddManualRecord 
+export default function LogPage({
+  config,
+  records,
+  onUpdateRecord,
+  onDeleteRecord,
+  onOpenManual,
+  lastAddedId,
 }) {
   const [filterDate, setFilterDate] = useState('ALL');
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
   const [editingRecord, setEditingRecord] = useState(null);
-  const [showManualModal, setShowManualModal] = useState(false);
 
-  // 备考每日心得状态
   const [reflections, setReflections] = useState(getReflections());
   const [reflectionInput, setReflectionInput] = useState('');
   const [editingRefDate, setEditingRefDate] = useState(null);
 
-  // 科目颜色映射
-  const subjectColors = {};
-  (config.subjects || []).forEach(s => {
-    subjectColors[s.name] = s.color;
-  });
+  // 刚补录/刚保存的记录：高亮 + 顶部提示
+  const [highlightId, setHighlightId] = useState(null);
+  const [toast, setToast] = useState('');
 
-  // 日期筛选
-  const filteredRecords = records.filter(r => {
-    if (filterDate === 'ALL') return true;
-    return r.record_date === filterDate;
-  });
+  useEffect(() => {
+    if (!lastAddedId) return;
+    setHighlightId(lastAddedId);
+    setToast('已保存，最新记录排在最上面');
+    const t1 = setTimeout(() => setHighlightId(null), 2800);
+    const t2 = setTimeout(() => setToast(''), 2800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [lastAddedId]);
 
-  // 倒序排列
-  const sortedRecords = [...filteredRecords].sort((a, b) => {
-    return (b.start_timestamp || 0) - (a.start_timestamp || 0);
-  });
-
-  // 分页截取
-  const paginatedRecords = sortedRecords.slice(0, page * pageSize);
-  const hasMore = paginatedRecords.length < sortedRecords.length;
-
-  const handleDelete = (id) => {
-    if (window.confirm('确定要删除这条学习记录吗？删除后不可恢复。')) {
-      onDeleteRecord(id);
-    }
+  const colorOf = (name) => {
+    const found = (config.subjects || []).find((s) => s.name === name);
+    return found ? found.color : '#9AA5B1';
   };
 
-  // 保存心得
+  const filtered = records.filter((r) => (filterDate === 'ALL' ? true : r.record_date === filterDate));
+
+  /**
+   * 排序：日期倒序 → 同一天内「录入时间」倒序。
+   * 这样手动补录的记录一定出现在当天最上面，而不是按虚拟的开始时间沉到中间。
+   */
+  const sorted = [...filtered].sort((a, b) => {
+    if (a.record_date !== b.record_date) {
+      return (b.record_date || '').localeCompare(a.record_date || '');
+    }
+    return (b.created_at || b.start_timestamp || 0) - (a.created_at || a.start_timestamp || 0);
+  });
+
+  const shown = sorted.slice(0, page * pageSize);
+  const hasMore = shown.length < sorted.length;
+
+  const handleDelete = (id) => {
+    if (window.confirm('删除这条学习记录？删除后不可恢复。')) onDeleteRecord(id);
+  };
+
   const handleSaveReflection = (dateStr) => {
-    const updated = saveReflection(dateStr, reflectionInput);
-    setReflections(updated);
+    setReflections(saveReflection(dateStr, reflectionInput));
     setEditingRefDate(null);
     setReflectionInput('');
   };
 
   return (
-    <div className="animate-fade-in" style={{ padding: '16px', paddingBottom: '32px' }}>
-      
-      {/* 顶部筛选栏与补录入口 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-          <Filter size={16} color="var(--text-sub)" />
-          <select 
-            value={filterDate} 
-            onChange={(e) => { setFilterDate(e.target.value); setPage(1); }}
-            style={{ fontSize: '0.85rem', padding: '6px 10px' }}
-          >
-            <option value="ALL">显示全部历史日志 ({records.length}条)</option>
-            {[...new Set(records.map(r => r.record_date))].sort().reverse().map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-
-        <button 
-          onClick={() => setShowManualModal(true)}
-          className="btn-primary"
-          style={{ padding: '8px 12px', fontSize: '0.85rem', marginLeft: '10px', flexShrink: 0 }}
-        >
-          <Plus size={16} />
-          手动补录
+    <div className="page">
+      <div className="log-head">
+        <h1 className="log-title">学习日志</h1>
+        <button className="btn-primary" style={{ padding: '9px 13px', fontSize: 12.5 }} onClick={onOpenManual}>
+          <Plus size={15} />
+          {COPY.manualEntry}
         </button>
       </div>
 
-      {/* 当选具体日期时的复盘感语编辑框 */}
+      <div className="log-filter">
+        <Filter size={14} color="var(--ink-3)" />
+        <select
+          value={filterDate}
+          onChange={(e) => {
+            setFilterDate(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="ALL">全部记录（{records.length} 条）</option>
+          {[...new Set(records.map((r) => r.record_date))].sort().reverse().map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {filterDate !== 'ALL' && (
-        <div className="card card-wood" style={{ marginBottom: '16px', padding: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--accent-gold)' }}>
-              📝 {filterDate} 考研备考复盘/总结
-            </span>
+        <div className="reflection">
+          <div className="reflection-head">
+            <span>📝 {filterDate} 复盘</span>
             {editingRefDate !== filterDate && (
-              <button 
+              <button
+                className="hero-edit"
                 onClick={() => {
                   setEditingRefDate(filterDate);
                   setReflectionInput(reflections[filterDate]?.content || '');
                 }}
-                className="btn-outline"
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
               >
-                {reflections[filterDate] ? '编辑' : '写复盘'}
+                {reflections[filterDate] ? '编辑' : '写一句'}
               </button>
             )}
           </div>
@@ -112,119 +118,80 @@ export default function LogPage({
             <div>
               <textarea
                 rows="3"
-                placeholder="记录今日备考心境、解题思路或复习感悟..."
+                placeholder="今天学得怎么样？有什么想记下来的？"
                 value={reflectionInput}
                 onChange={(e) => setReflectionInput(e.target.value)}
-                style={{ marginBottom: '8px', fontSize: '0.85rem' }}
+                style={{ marginBottom: '8px', fontSize: 13 }}
               />
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button 
-                  onClick={() => setEditingRefDate(null)} 
-                  className="btn-secondary" 
-                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                >
+                <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setEditingRefDate(null)}>
                   取消
                 </button>
-                <button 
-                  onClick={() => handleSaveReflection(filterDate)} 
-                  className="btn-primary" 
-                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                >
+                <button className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => handleSaveReflection(filterDate)}>
                   <Save size={12} />
                   保存
                 </button>
               </div>
             </div>
           ) : (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontStyle: reflections[filterDate] ? 'normal' : 'italic' }}>
-              {reflections[filterDate]?.content || '暂无复盘感悟，点右上角记录你今天的复习心得吧！'}
+            <p className={reflections[filterDate] ? '' : 'placeholder'}>
+              {reflections[filterDate]?.content || '这一天还没有复盘，点右上角写一句。'}
             </p>
           )}
         </div>
       )}
 
-      {/* 历史记录列表 */}
-      {paginatedRecords.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {paginatedRecords.map((r) => {
-            const subColor = subjectColors[r.subject_name] || '#9AA5B1';
+      {shown.length > 0 ? (
+        <div className="log-list">
+          {shown.map((r) => {
+            const color = colorOf(r.subject_name);
             return (
-              <div key={r.record_id} className="card" style={{ padding: '14px', marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      backgroundColor: `${subColor}20`,
-                      color: subColor,
-                      border: `1px solid ${subColor}`,
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-full)'
-                    }}>
-                      {r.subject_name}
-                    </span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-sub)' }}>
-                      {r.record_date}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--primary-blue)', fontSize: '1.05rem' }}>
-                      {r.duration_min} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>分钟</span>
-                    </span>
-                    <button 
-                      onClick={() => setEditingRecord(r)}
-                      style={{ background: 'none', padding: '4px', color: 'var(--text-sub)' }}
-                      title="编辑"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(r.record_id)}
-                      style={{ background: 'none', padding: '4px', color: '#EF4444' }}
-                      title="删除"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+              <article
+                className={`log-item ${r.record_id === highlightId ? 'just-added' : ''}`}
+                key={r.record_id}
+                data-record-id={r.record_id}
+              >
+                <div className="log-item-top">
+                  <span className="log-subject" style={{ color, borderColor: color, background: `${color}18` }}>
+                    {r.subject_name}
+                  </span>
+                  <span className="log-date">{r.record_date}</span>
+                  <span className="log-dur">{r.duration_min} 分</span>
+                  <button className="log-icon" onClick={() => setEditingRecord(r)} aria-label="编辑">
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    className="log-icon danger"
+                    onClick={() => handleDelete(r.record_id)}
+                    aria-label="删除"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
 
-                {/* 具体的学习内容 */}
-                {r.study_content ? (
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', lineHeight: 1.5, backgroundColor: 'var(--bg-main)', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
-                    {r.study_content}
-                  </p>
-                ) : (
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    未填写具体学习内容
-                  </p>
-                )}
-              </div>
+                <p className={r.study_content ? 'log-content' : 'log-content empty'}>
+                  {r.study_content || '没有填写具体内容'}
+                </p>
+              </article>
             );
           })}
 
-          {/* 分页加载更多 */}
           {hasMore && (
-            <button 
-              onClick={() => setPage(p => p + 1)}
-              className="btn-secondary"
-              style={{ width: '100%', padding: '12px', marginTop: '8px', fontSize: '0.85rem' }}
-            >
-              加载更多历史日志 (已展示 {paginatedRecords.length} / {sortedRecords.length} 条)
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px', marginTop: 8, fontSize: 12.5 }} onClick={() => setPage((p) => p + 1)}>
+              加载更多（{shown.length} / {sorted.length}）
             </button>
           )}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-sub)' }}>
-          <FileText size={48} strokeWidth={1.5} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
-          <p style={{ fontWeight: 600 }}>暂无匹配的学习日志</p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            尝试切换筛选日期，或点右上角【手动补录】新增一条记录。
-          </p>
+        <div className="empty-state">
+          <FileText size={34} strokeWidth={1.4} color="var(--ink-4)" />
+          <p>还没有记录</p>
+          <span>点右上角「手动补录」，或者回到计时页专注一次。</span>
         </div>
       )}
 
-      {/* 弹窗：编辑记录 */}
+      {toast && <div className="toast">{toast}</div>}
+
       {editingRecord && (
         <EditLogModal
           record={editingRecord}
@@ -233,16 +200,6 @@ export default function LogPage({
           onClose={() => setEditingRecord(null)}
         />
       )}
-
-      {/* 弹窗：手动补录 */}
-      {showManualModal && (
-        <ManualLogModal
-          subjects={config.subjects || []}
-          onSave={onAddManualRecord}
-          onClose={() => setShowManualModal(false)}
-        />
-      )}
-
     </div>
   );
 }

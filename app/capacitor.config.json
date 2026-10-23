@@ -1,6 +1,6 @@
 {
   "appId": "com.yanshiji.app",
-  "appName": "研时记",
+  "appName": "学时记",
   "webDir": "dist-capacitor",
   "server": {
     "androidScheme": "https"

@@ -1,447 +1,302 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Square, RotateCcw, Save, Trash2, CheckCircle2, Edit3, Clock, Plus } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, ChevronLeft, PenLine, Check } from 'lucide-react';
+import Ring from '../components/Ring';
 import { timerService, TIMER_STATUS, TIMER_MODE } from '../services/timerService';
-import { formatDate, saveAppConfig } from '../services/storage';
+import { formatDate } from '../services/storage';
 
-export default function TimerPage({ config, onSaveRecord }) {
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+
+function clockText(totalSeconds) {
+  const s = Math.max(0, totalSeconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+}
+
+function fmtHM(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h <= 0) return `${m}m`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+export default function TimerPage({ config, records, onSaveRecord, onExit, onOpenManual }) {
   const [timerState, setTimerState] = useState(timerService.getState());
-  const [pageMode, setPageMode] = useState('DIRECT_INPUT'); // 'DIRECT_INPUT' (直接手动录入) | 'LIVE_TIMER' (实时计时)
+  const [selectedSubject, setSelectedSubject] = useState(() => {
+    const st = timerService.getState();
+    if (st.status !== TIMER_STATUS.IDLE && st.subjectName) return st.subjectName;
+    return config.subjects?.[0]?.name || '其他';
+  });
 
-  // 1. 实时计时状态
-  const [selectedSubject, setSelectedSubject] = useState(timerState.subjectName || config.subjects[0]?.name || '数学');
-  const [isCustomSubject, setIsCustomSubject] = useState(false);
-  const [customSubjectInput, setCustomSubjectInput] = useState('');
-  const [pomoMode, setPomoMode] = useState(timerState.mode || TIMER_MODE.COUNT_UP);
-  const [pomoTarget, setPomoTarget] = useState(timerState.targetMinutes || 25);
-
-  // 实时计时结束弹窗状态
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [stopData, setStopData] = useState(null);
   const [editableDurationMin, setEditableDurationMin] = useState(1);
   const [editableSubject, setEditableSubject] = useState('');
-
-  // 2. 直接手动打卡表格状态
-  const [directDate, setDirectDate] = useState(formatDate(new Date()));
-  const [directSubject, setDirectSubject] = useState(config.subjects[0]?.name || '数学');
-  const [isDirectCustomSub, setIsDirectCustomSub] = useState(false);
-  const [directCustomSubInput, setDirectCustomSubInput] = useState('');
-  const [directDuration, setDirectDuration] = useState(60);
-  const [directContent, setDirectContent] = useState('');
-
   const [studyContent, setStudyContent] = useState('');
-  const [alertMsg, setAlertMsg] = useState('');
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
-    const unsubscribe = timerService.subscribe((state) => {
-      setTimerState(state);
-      if (state.status !== TIMER_STATUS.IDLE) {
-        setPageMode('LIVE_TIMER'); // 如果正在计时，自动保持在实时计时标签
-      }
-    });
+    const unsubscribe = timerService.subscribe(setTimerState);
     return unsubscribe;
   }, []);
-
-  const getActiveLiveSubject = () => {
-    if (isCustomSubject) return customSubjectInput.trim() || '自定义科目';
-    return selectedSubject;
-  };
-
-  const getActiveDirectSubject = () => {
-    if (isDirectCustomSub) return directCustomSubInput.trim() || '自定义科目';
-    return directSubject;
-  };
-
-  // 一键直接手动保存打卡
-  const handleDirectSubmit = (e) => {
-    e.preventDefault();
-    const mins = parseInt(directDuration, 10);
-    if (isNaN(mins) || mins < 1) {
-      alert('专注时长至少为 1 分钟！');
-      return;
-    }
-
-    const finalSub = getActiveDirectSubject();
-
-    // 如果是新科目，记入全局
-    if (!config.subjects.some(s => s.name === finalSub)) {
-      const colors = ['#4A90D9', '#E0705A', '#7B6CCF', '#4CB8A4', '#D9A05B', '#6B9E7A'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      saveAppConfig({
-        subjects: [...config.subjects, { name: finalSub, color: randomColor }]
-      });
-    }
-
-    const now = Date.now();
-    onSaveRecord({
-      start_timestamp: now - (mins * 60000),
-      end_timestamp: now,
-      duration_min: mins,
-      subject_name: finalSub,
-      study_content: directContent,
-      record_date: directDate
-    });
-
-    setAlertMsg(`成功记录！[${finalSub}] 本次专注 ${mins} 分钟。`);
-    setDirectContent('');
-    setTimeout(() => setAlertMsg(''), 3500);
-  };
-
-  // 实时计时相关控制
-  const handleStartLive = () => {
-    timerService.start(getActiveLiveSubject());
-  };
-  const handlePauseLive = () => timerService.pause();
-  const handleResumeLive = () => timerService.resume();
-  const handleStopLive = () => {
-    const data = timerService.stop();
-    setStopData(data);
-    setEditableDurationMin(Math.max(1, data.duration_min));
-    setEditableSubject(data.subject_name || getActiveLiveSubject());
-    setStudyContent('');
-    setShowSaveModal(true);
-  };
-  const handleResetLive = () => {
-    if (window.confirm('确认放弃本次计时吗？')) timerService.reset();
-  };
-
-  const handleConfirmLiveSave = () => {
-    if (!stopData) return;
-    const mins = parseInt(editableDurationMin, 10);
-    if (isNaN(mins) || mins < 1) return;
-
-    const finalSub = editableSubject.trim() || '其他';
-    if (!config.subjects.some(s => s.name === finalSub)) {
-      const colors = ['#4A90D9', '#E0705A', '#7B6CCF', '#4CB8A4', '#D9A05B', '#6B9E7A'];
-      saveAppConfig({
-        subjects: [...config.subjects, { name: finalSub, color: colors[0] }]
-      });
-    }
-
-    onSaveRecord({
-      ...stopData,
-      duration_min: mins,
-      subject_name: finalSub,
-      study_content: studyContent
-    });
-
-    setShowSaveModal(false);
-    setStopData(null);
-    setAlertMsg(`打卡成功！[${finalSub}] 专注 ${mins} 分钟已存入日志。`);
-    setTimeout(() => setAlertMsg(''), 3500);
-  };
-
-  const formatClock = (sec) => {
-    let displaySec = sec;
-    if (pomoMode === TIMER_MODE.POMODORO) {
-      displaySec = Math.max(0, (pomoTarget * 60) - sec);
-    }
-    const h = Math.floor(displaySec / 3600);
-    const m = Math.floor((displaySec % 3600) / 60);
-    const s = displaySec % 60;
-    if (h > 0) return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
-    return [m, s].map(v => String(v).padStart(2, '0')).join(':');
-  };
 
   const isIdle = timerState.status === TIMER_STATUS.IDLE;
   const isRunning = timerState.status === TIMER_STATUS.RUNNING;
   const isPaused = timerState.status === TIMER_STATUS.PAUSED;
 
+  const mode = timerState.mode || TIMER_MODE.COUNT_UP;
+  const target = timerState.targetMinutes || 25;
+  const elapsed = timerState.elapsedSeconds || 0;
+  const isPomodoro = mode === TIMER_MODE.POMODORO;
+
+  const displaySeconds = isPomodoro ? Math.max(0, target * 60 - elapsed) : elapsed;
+  const progress = isPomodoro
+    ? Math.min(1, elapsed / (target * 60))
+    : Math.min(1, elapsed / 3600);
+
+  const activeName = isIdle ? selectedSubject : timerState.subjectName;
+  let subjects = config.subjects || [];
+  if (activeName && !subjects.some((s) => s.name === activeName)) {
+    subjects = [{ name: activeName, color: '#9AA5B1' }, ...subjects];
+  }
+
+  /* —— 今日 / 本周 / 连续 —— */
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatDate(today);
+
+  const todayMin = records
+    .filter((r) => r.record_date === todayStr)
+    .reduce((s, r) => s + (r.duration_min || 0), 0);
+
+  const dayOfWeek = today.getDay() || 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dayOfWeek - 1));
+  const mondayStr = formatDate(monday);
+
+  const weekMin = records
+    .filter((r) => r.record_date >= mondayStr && r.record_date <= todayStr)
+    .reduce((s, r) => s + (r.duration_min || 0), 0);
+
+  const daySet = new Set(records.map((r) => r.record_date).filter(Boolean));
+  let streak = 0;
+  const cursor = new Date(today);
+  if (!daySet.has(formatDate(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (daySet.has(formatDate(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  /* —— 操作 —— */
+  const pickSubject = (name) => {
+    if (!isIdle) return;
+    setSelectedSubject(name);
+    timerService.setSubject(name);
+  };
+
+  const handleStart = () => timerService.start(selectedSubject);
+  const handlePause = () => timerService.pause();
+  const handleResume = () => timerService.resume();
+
+  const handleStop = () => {
+    const data = timerService.stop();
+    setStopData(data);
+    setEditableDurationMin(Math.max(1, data.duration_min));
+    setEditableSubject(data.subject_name || selectedSubject);
+    setStudyContent('');
+    setShowSaveModal(true);
+  };
+
+  const handleReset = () => {
+    if (window.confirm('放弃这次计时？已经计的时间不会保存。')) timerService.reset();
+  };
+
+  const handleConfirmSave = () => {
+    if (!stopData) return;
+    const mins = parseInt(editableDurationMin, 10);
+    if (Number.isNaN(mins) || mins < 1) {
+      setToast('时长至少 1 分钟');
+      return;
+    }
+
+    const finalSubject = editableSubject.trim() || '其他';
+    onSaveRecord({
+      ...stopData,
+      duration_min: mins,
+      subject_name: finalSubject,
+      study_content: studyContent,
+    });
+
+    setShowSaveModal(false);
+    setStopData(null);
+    setToast(`已记录 · ${finalSubject} ${mins} 分钟`);
+    setTimeout(() => setToast(''), 2600);
+  };
+
   return (
-    <div className="animate-fade-in" style={{ padding: '16px', display: 'flex', flexDirection: 'column', minHeight: '80vh' }}>
-      
-      {/* 提示消息 */}
-      {alertMsg && (
-        <div style={{
-          padding: '10px 14px',
-          backgroundColor: '#ECFDF5',
-          color: '#059669',
-          borderRadius: 'var(--radius-md)',
-          fontSize: '0.85rem',
-          marginBottom: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          border: '1px solid #A7F3D0'
-        }}>
-          <CheckCircle2 size={18} />
-          <span>{alertMsg}</span>
-        </div>
-      )}
-
-      {/* 顶部主切换栏：直接录入时间 vs 秒表实时计时 */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <button
-          onClick={() => setPageMode('DIRECT_INPUT')}
-          className={pageMode === 'DIRECT_INPUT' ? 'btn-primary' : 'btn-outline'}
-          disabled={!isIdle}
-          style={{ flex: 1, padding: '12px 8px', fontSize: '0.9rem' }}
-        >
-          ✍️ 直接录入学习时间
+    <div className="focus-page">
+      <div className="focus-top">
+        <button className="focus-icon-btn" onClick={onExit} aria-label="返回">
+          <ChevronLeft size={20} />
         </button>
-
-        <button
-          onClick={() => setPageMode('LIVE_TIMER')}
-          className={pageMode === 'LIVE_TIMER' ? 'btn-primary' : 'btn-outline'}
-          style={{ flex: 1, padding: '12px 8px', fontSize: '0.9rem', position: 'relative' }}
-        >
-          ⏱ 秒表/番茄钟计时
-          {!isIdle && (
-            <span style={{
-              width: 8, height: 8, backgroundColor: '#EF4444', borderRadius: '50%',
-              position: 'absolute', top: 6, right: 6
-            }} />
-          )}
+        <div className="focus-title">
+          {isIdle ? '准备专注' : isPaused ? '已暂停' : `专注中 · ${timerState.subjectName}`}
+        </div>
+        <button className="focus-icon-btn" onClick={onOpenManual} aria-label="手动补录">
+          <PenLine size={17} />
         </button>
       </div>
 
-      {/* ===== 模式 A: 直接手动录入学习时间 (无需开启秒表计时) ===== */}
-      {pageMode === 'DIRECT_INPUT' && (
-        <form onSubmit={handleDirectSubmit} className="card" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={18} color="var(--primary-blue)" />
-            快捷录入学习时间
-          </h3>
-
-          {/* 1. 打卡日期 */}
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '4px' }}>
-              学习日期
-            </label>
-            <input
-              type="date"
-              value={directDate}
-              onChange={(e) => setDirectDate(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* 2. 科目选择或自定义 */}
-          <div style={{ marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)' }}>
-                学习科目
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsDirectCustomSub(!isDirectCustomSub)}
-                style={{ background: 'none', color: 'var(--primary-blue)', fontSize: '0.78rem', fontWeight: 600 }}
-              >
-                {isDirectCustomSub ? '选择已有科目' : '＋ 自定义新科目'}
-              </button>
-            </div>
-
-            {!isDirectCustomSub ? (
-              <select value={directSubject} onChange={(e) => setDirectSubject(e.target.value)}>
-                {(config.subjects || []).map(s => (
-                  <option key={s.name} value={s.name}>{s.name}</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                placeholder="请输入自定义科目名称..."
-                value={directCustomSubInput}
-                onChange={(e) => setDirectCustomSubInput(e.target.value)}
-                required
-              />
-            )}
-          </div>
-
-          {/* 3. 手动录入时长 (分钟) */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '6px' }}>
-              学习专注时长 (分钟)
-            </label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="number"
-                min="1"
-                max="1440"
-                value={directDuration}
-                onChange={(e) => setDirectDuration(e.target.value)}
-                required
-                style={{ fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}
-              />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-sub)', flexShrink: 0 }}>
-                = {Math.floor(directDuration / 60)}h {directDuration % 60}m
-              </span>
-            </div>
-
-            {/* 快速选择加号 */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-              {[30, 45, 60, 90, 120, 180].map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  className="btn-outline"
-                  onClick={() => setDirectDuration(m)}
-                  style={{ flex: 1, padding: '6px 0', fontSize: '0.75rem', fontWeight: 600 }}
-                >
-                  {m}m
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. 具体学习内容 */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-sub)', display: 'block', marginBottom: '4px' }}>
-              具体学习内容 (可选)
-            </label>
-            <textarea
-              rows="3"
-              placeholder="例如：完成线代前三章错题复盘、背完 100 个英语长难句..."
-              value={directContent}
-              onChange={(e) => setDirectContent(e.target.value)}
-            />
-          </div>
-
-          {/* 提交按钮 */}
-          <button type="submit" className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1.05rem' }}>
-            <Save size={18} />
-            保存学习记录
+      <div className="focus-chips">
+        {subjects.map((s) => (
+          <button
+            key={s.name}
+            className={`chip ${activeName === s.name ? 'on' : ''}`}
+            onClick={() => pickSubject(s.name)}
+            disabled={!isIdle}
+          >
+            {s.name}
           </button>
-        </form>
+        ))}
+      </div>
+
+      <div className="focus-modes">
+        <button
+          className={mode === TIMER_MODE.COUNT_UP ? 'on' : ''}
+          onClick={() => timerService.setMode(TIMER_MODE.COUNT_UP)}
+          disabled={!isIdle}
+        >
+          正计时
+        </button>
+        <button
+          className={isPomodoro && target === 25 ? 'on' : ''}
+          onClick={() => timerService.setMode(TIMER_MODE.POMODORO, 25)}
+          disabled={!isIdle}
+        >
+          番茄 25
+        </button>
+        <button
+          className={isPomodoro && target === 50 ? 'on' : ''}
+          onClick={() => timerService.setMode(TIMER_MODE.POMODORO, 50)}
+          disabled={!isIdle}
+        >
+          番茄 50
+        </button>
+      </div>
+
+      <div className="dial">
+        <Ring
+          size={280}
+          stroke={6}
+          value={isIdle ? 0 : progress}
+          track="rgba(255,255,255,.07)"
+          gradient={['#8FE0BC', '#E3B471']}
+        />
+        <div className="dial-inner">
+          <div className="dial-time">{clockText(displaySeconds)}</div>
+          <div className="dial-label">{isPomodoro ? 'REMAINING' : 'ELAPSED'}</div>
+          <div className="dial-sub">
+            {isPomodoro
+              ? `目标 ${target} 分钟 · 已专注 ${Math.floor(elapsed / 60)} 分钟`
+              : isIdle
+                ? '选好科目，按下开始'
+                : '保持节奏，别急着看表'}
+          </div>
+        </div>
+      </div>
+
+      <div className="focus-stats">
+        <div className="focus-stat">
+          <b>{fmtHM(todayMin)}</b>
+          <span>今日</span>
+        </div>
+        <div className="focus-stat">
+          <b>{streak}</b>
+          <span>连续天数</span>
+        </div>
+        <div className="focus-stat">
+          <b>{fmtHM(weekMin)}</b>
+          <span>本周</span>
+        </div>
+      </div>
+
+      <button className="focus-link" onClick={onOpenManual}>
+        <PenLine size={13} />
+        直接录入学习时长
+      </button>
+
+      <div className="focus-controls">
+        <button className="ctrl-ghost" onClick={handleReset} disabled={isIdle} aria-label="放弃">
+          <RotateCcw size={19} />
+        </button>
+
+        {isIdle && (
+          <button className="ctrl-main" onClick={handleStart} aria-label="开始">
+            <Play size={28} fill="currentColor" />
+          </button>
+        )}
+        {isRunning && (
+          <button className="ctrl-main paused" onClick={handlePause} aria-label="暂停">
+            <Pause size={28} fill="currentColor" />
+          </button>
+        )}
+        {isPaused && (
+          <button className="ctrl-main" onClick={handleResume} aria-label="继续">
+            <Play size={28} fill="currentColor" />
+          </button>
+        )}
+
+        <button className="ctrl-ghost" onClick={handleStop} disabled={isIdle} aria-label="结束并保存">
+          <Square size={17} fill="currentColor" />
+        </button>
+      </div>
+
+      <div className="focus-hint">
+        {isIdle ? '屏幕会保持常亮 · 计时不会因为切页中断' : '结束会生成一条学习记录'}
+      </div>
+
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 120,
+            transform: 'translateX(-50%)',
+            background: 'rgba(20,32,28,.92)',
+            border: '1px solid rgba(255,255,255,.12)',
+            color: '#cfe8da',
+            fontSize: 12,
+            padding: '9px 16px',
+            borderRadius: 999,
+            zIndex: 120,
+          }}
+        >
+          {toast}
+        </div>
       )}
 
-      {/* ===== 模式 B: 实时秒表 / 番茄钟 计时 ===== */}
-      {pageMode === 'LIVE_TIMER' && (
-        <>
-          {/* 子模式 */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-            <button
-              onClick={() => { setPomoMode(TIMER_MODE.COUNT_UP); timerService.setMode(TIMER_MODE.COUNT_UP); }}
-              className={pomoMode === TIMER_MODE.COUNT_UP ? 'btn-primary' : 'btn-outline'}
-              disabled={!isIdle}
-              style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}
-            >
-              正计时
-            </button>
-            <button
-              onClick={() => { setPomoMode(TIMER_MODE.POMODORO); setPomoTarget(25); timerService.setMode(TIMER_MODE.POMODORO, 25); }}
-              className={pomoMode === TIMER_MODE.POMODORO && pomoTarget === 25 ? 'btn-primary' : 'btn-outline'}
-              disabled={!isIdle}
-              style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}
-            >
-              番茄 25m
-            </button>
-            <button
-              onClick={() => { setPomoMode(TIMER_MODE.POMODORO); setPomoTarget(50); timerService.setMode(TIMER_MODE.POMODORO, 50); }}
-              className={pomoMode === TIMER_MODE.POMODORO && pomoTarget === 50 ? 'btn-primary' : 'btn-outline'}
-              disabled={!isIdle}
-              style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}
-            >
-              番茄 50m
-            </button>
-          </div>
-
-          {/* 科目 */}
-          <div className="card" style={{ padding: '14px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-sub)', fontWeight: 600 }}>
-                专注科目
-              </label>
-              {isIdle && (
-                <button onClick={() => setIsCustomSubject(!isCustomSubject)} style={{ background: 'none', color: 'var(--primary-blue)', fontSize: '0.75rem', fontWeight: 600 }}>
-                  {isCustomSubject ? '选择已有' : '＋ 新输入'}
-                </button>
-              )}
-            </div>
-
-            {!isCustomSubject ? (
-              <select value={selectedSubject} onChange={(e) => { setSelectedSubject(e.target.value); timerService.setSubject(e.target.value); }} disabled={!isIdle}>
-                {(config.subjects || []).map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-              </select>
-            ) : (
-              <input
-                type="text"
-                placeholder="科目名称..."
-                value={customSubjectInput}
-                onChange={(e) => setCustomSubjectInput(e.target.value)}
-                onBlur={() => timerService.setSubject(getActiveLiveSubject())}
-                disabled={!isIdle}
-              />
-            )}
-          </div>
-
-          {/* 数字计时盘 */}
-          <div className="card" style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justify: 'center',
-            padding: '30px 20px',
-            textAlign: 'center',
-            background: isRunning ? 'linear-gradient(180deg, var(--bg-card), var(--primary-blue-light))' : 'var(--bg-card)'
-          }}>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-sub)', fontWeight: 600, marginBottom: '8px' }}>
-              {isIdle ? '准备开始专注' : isRunning ? `正在专注 · ${getActiveLiveSubject()}` : '计时已暂停'}
-            </div>
-            <div style={{ fontSize: '4.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', margin: '12px 0' }}>
-              {formatClock(timerState.elapsedSeconds)}
-            </div>
-          </div>
-
-          {/* 操作按钮 */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
-            {isIdle && (
-              <button onClick={handleStartLive} className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1rem' }}>
-                <Play size={20} fill="white" /> 开启秒表计时
-              </button>
-            )}
-
-            {isRunning && (
-              <>
-                <button onClick={handlePauseLive} className="btn-accent" style={{ flex: 1, padding: '12px' }}>
-                  <Pause size={18} fill="white" /> 暂停
-                </button>
-                <button onClick={handleStopLive} className="btn-primary" style={{ flex: 1.5, padding: '12px' }}>
-                  <Square size={18} fill="white" /> 结束保存
-                </button>
-              </>
-            )}
-
-            {isPaused && (
-              <>
-                <button onClick={handleResetLive} className="btn-outline" style={{ padding: '12px' }}>
-                  <RotateCcw size={18} />
-                </button>
-                <button onClick={handleResumeLive} className="btn-primary" style={{ flex: 1, padding: '12px' }}>
-                  <Play size={18} fill="white" /> 继续
-                </button>
-                <button onClick={handleStopLive} className="btn-accent" style={{ flex: 1, padding: '12px' }}>
-                  <Square size={18} fill="white" /> 保存
-                </button>
-              </>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* 实时计时结束弹窗 */}
       {showSaveModal && stopData && (
         <div className="modal-overlay">
-          <div className="modal-container">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '12px' }}>
-              确认打卡保存
-            </h3>
+          <div className="modal-container sheet-dark">
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px' }}>保存这次专注</h3>
+            <p style={{ fontSize: '12px', color: '#8fa79b', marginBottom: '16px' }}>
+              {stopData.subject_name} · 开始于{' '}
+              {new Date(stopData.start_timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-sub)', display: 'block', marginBottom: '2px' }}>
-                  科目
-                </label>
-                <input
-                  type="text"
-                  value={editableSubject}
-                  onChange={(e) => setEditableSubject(e.target.value)}
-                />
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>科目</label>
+                <input value={editableSubject} onChange={(e) => setEditableSubject(e.target.value)} />
               </div>
               <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-sub)', display: 'block', marginBottom: '2px' }}>
-                  时长 (分钟)
-                </label>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>时长（分钟）</label>
                 <input
                   type="number"
                   min="1"
@@ -449,25 +304,31 @@ export default function TimerPage({ config, onSaveRecord }) {
                   onChange={(e) => setEditableDurationMin(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                具体学习内容 (可选)
-              </label>
-              <textarea
-                rows="3"
-                value={studyContent}
-                onChange={(e) => setStudyContent(e.target.value)}
-              />
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>学了什么</label>
+                <textarea
+                  rows="3"
+                  placeholder="例如：第三章习题、背 80 个单词…"
+                  value={studyContent}
+                  onChange={(e) => setStudyContent(e.target.value)}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => { setShowSaveModal(false); timerService.reset(); }} className="btn-secondary" style={{ flex: 1, padding: '10px' }}>
+              <button
+                onClick={() => {
+                  setShowSaveModal(false);
+                  setStopData(null);
+                }}
+                className="btn-secondary"
+                style={{ flex: 1, padding: '12px' }}
+              >
                 丢弃
               </button>
-              <button onClick={handleConfirmLiveSave} className="btn-primary" style={{ flex: 1.5, padding: '10px' }}>
-                确认保存
+              <button onClick={handleConfirmSave} className="btn-primary" style={{ flex: 1.4, padding: '12px' }}>
+                <Check size={16} />
+                保存记录
               </button>
             </div>
           </div>
