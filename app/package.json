@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --base=/public/web/",
     "lint": "oxlint",
     "test": "node test_suite.mjs",
     "build:capacitor": "vite build --base=/ --outDir=dist-capacitor",
